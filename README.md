@@ -8,7 +8,7 @@
 
 ---
 
-<iframe src="https://store.steampowered.com/widget/3548580/" frameborder="0" width="646" height="190"></iframe>
+[![Chill with You](./header_schinese.jpg)](https://store.steampowered.com/app/3548580/)
 
 ---
 
