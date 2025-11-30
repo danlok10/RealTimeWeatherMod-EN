@@ -9,10 +9,11 @@ using HarmonyLib;
 using UnityEngine;
 using UnityEngine.Networking;
 using Bulbul;
+using TMPro; // 【新增】引用 TextMeshPro 命名空间
 
 namespace ChillWithYou.EnvSync
 {
-    [BepInPlugin("chillwithyou.envsync", "Chill Env Sync", "4.4.1")]
+    [BepInPlugin("chillwithyou.envsync", "Chill Env Sync", "4.5.0")]
     public class ChillEnvPlugin : BaseUnityPlugin
     {
         internal static ChillEnvPlugin Instance;
@@ -21,6 +22,9 @@ namespace ChillWithYou.EnvSync
 
         internal static object WindowViewServiceInstance;
         internal static MethodInfo ChangeWeatherMethod;
+
+        // 【新增】用于存储即将在UI上显示的天气字符串
+        internal static string UIWeatherString = "";
 
         internal static bool Initialized;
 
@@ -33,6 +37,9 @@ namespace ChillWithYou.EnvSync
         internal static ConfigEntry<bool> Cfg_EnableWeatherSync;
         internal static ConfigEntry<bool> Cfg_UnlockEnvironments;
         internal static ConfigEntry<bool> Cfg_UnlockDecorations;
+
+        // UI 配置
+        internal static ConfigEntry<bool> Cfg_ShowWeatherOnUI;
 
         // 调试配置
         internal static ConfigEntry<bool> Cfg_DebugMode;
@@ -48,7 +55,7 @@ namespace ChillWithYou.EnvSync
             Instance = this;
             Log = Logger;
 
-            Log.LogInfo("【4.4.1】启动 - 优化坏天气判定 (允许太阳雨/雪)");
+            Log.LogInfo("【4.5.0】启动 - UI显示集成 (日期栏显示天气)");
 
             try
             {
@@ -89,6 +96,9 @@ namespace ChillWithYou.EnvSync
 
             Cfg_UnlockEnvironments = Config.Bind("Unlock", "UnlockAllEnvironments", true, "是否自动解锁所有环境场景");
             Cfg_UnlockDecorations = Config.Bind("Unlock", "UnlockAllDecorations", true, "是否自动解锁所有装饰品");
+
+            // 【新增】UI 开关
+            Cfg_ShowWeatherOnUI = Config.Bind("UI", "ShowWeatherOnDate", true, "是否在游戏日期栏显示实时天气和温度");
 
             Cfg_DebugMode = Config.Bind("Debug", "EnableDebugMode", false, "是否开启调试模式");
             Cfg_DebugCode = Config.Bind("Debug", "SimulatedCode", 1, "模拟天气代码");
@@ -418,6 +428,7 @@ namespace ChillWithYou.EnvSync
             ChillEnvPlugin.Log?.LogInfo($"插件记录: {_lastAppliedEnv}");
             var currentActive = GetCurrentActiveEnvironment();
             ChillEnvPlugin.Log?.LogInfo($"游戏实际: {currentActive}");
+            ChillEnvPlugin.Log?.LogInfo($"UI文本: {ChillEnvPlugin.UIWeatherString}");
 
             if (ChillEnvPlugin.Cfg_DebugMode.Value)
             {
@@ -527,28 +538,19 @@ namespace ChillWithYou.EnvSync
 
         private bool IsBadWeather(int code)
         {
-            // 排除项 (太阳雨/雪): 10(阵雨), 13(小雨), 21(阵雪), 22(小雪)
             if (code == 10 || code == 13 || code == 21 || code == 22) return false;
-
-            // 原始 BadWeather 定义: [4, 7-31, 34-36]
             if (code == 4) return true;
             if (code >= 7 && code <= 31) return true;
             if (code >= 34 && code <= 36) return true;
-
             return false;
         }
 
         private EnvironmentType? GetSceneryType(int code)
         {
-            // Snow: 20-25
             if (code >= 20 && code <= 25) return EnvironmentType.Snow;
-            // ThunderRain: 11, 12, 16-18
             if (code == 11 || code == 12 || (code >= 16 && code <= 18)) return EnvironmentType.ThunderRain;
-            // HeavyRain: 10, 14, 15
             if (code == 10 || code == 14 || code == 15) return EnvironmentType.HeavyRain;
-            // LightRain: 13, 19
             if (code == 13 || code == 19) return EnvironmentType.LightRain;
-
             return null;
         }
 
@@ -563,53 +565,36 @@ namespace ChillWithYou.EnvSync
             TimeSpan sunsetStart = sunset.Subtract(TimeSpan.FromMinutes(30));
             TimeSpan sunsetEnd = sunset.Add(TimeSpan.FromMinutes(30));
 
-            // Night: 晚于 SunsetEnd 或 早于 Sunrise
-            if (currentTime >= sunsetEnd || currentTime < sunrise) return EnvironmentType.Night;
-            // Sunset: 在 SunsetStart 和 SunsetEnd 之间
+            if (currentTime >= sunrise && currentTime < sunsetStart) return EnvironmentType.Day;
             else if (currentTime >= sunsetStart && currentTime < sunsetEnd) return EnvironmentType.Sunset;
-            // Day: 其他
-            else return EnvironmentType.Day;
+            else return EnvironmentType.Night;
         }
 
         // --- 执行逻辑 ---
 
-        // 应用基础环境 (Day/Sunset/Night/Cloudy)
-        // 规则: 互斥，且必须调用 Service
         private void ApplyBaseEnvironment(EnvironmentType target, bool force)
         {
-            // 只有当目标和当前不一致，或者强制刷新时，才操作
             if (!force && IsEnvironmentActive(target)) return;
 
-            // 关闭其他所有基础环境
             foreach (var env in BaseEnvironments)
             {
                 if (env != target && IsEnvironmentActive(env))
                 {
-                    SimulateClick(env); // 关掉旧的
+                    SimulateClick(env);
                 }
             }
 
-            // 开启新的
             if (!IsEnvironmentActive(target))
             {
-                SimulateClick(target); // 开启新的
-            }
-            else if (force)
-            {
-                // 已经是开启状态，但在强制模式下，可能需要修复画面
-                // 但对于 BaseEnv，通常不需要额外操作，因为 CallServiceChangeWeather 会处理
+                SimulateClick(target);
             }
 
-            // 关键：通知 Service 切换背景
             ChillEnvPlugin.CallServiceChangeWeather(target);
             ChillEnvPlugin.Log?.LogInfo($"[环境] 切换至: {target}");
         }
 
-        // 应用景色 (Rain/Snow)
-        // 规则: 互斥，但【绝对不调用】Service
         private void ApplyScenery(EnvironmentType? target, bool force)
         {
-            // 遍历所有可能的景色
             foreach (var env in SceneryWeathers)
             {
                 bool shouldBeActive = (target.HasValue && target.Value == env);
@@ -617,22 +602,17 @@ namespace ChillWithYou.EnvSync
 
                 if (shouldBeActive)
                 {
-                    // 如果应该开，但没开 -> 点开
                     if (!isActive)
                     {
                         SimulateClick(env);
                         ChillEnvPlugin.Log?.LogInfo($"[景色] 开启: {env}");
                     }
-                    // 如果应该开，且开了，但在强制模式 -> 啥也不做 (避免 Toggle Off)
-                    // 景色通常不需要强制唤醒画面，只要 UI 亮了，粒子就会出来
                 }
                 else
                 {
-                    // 如果不该开，但开了 -> 关掉
                     if (isActive)
                     {
-                        SimulateClick(env); // 关掉
-                        // ChillEnvPlugin.Log?.LogInfo($"[景色] 关闭: {env}");
+                        SimulateClick(env);
                     }
                 }
             }
@@ -645,29 +625,19 @@ namespace ChillWithYou.EnvSync
                 ChillEnvPlugin.Log?.LogInfo($"[决策] 天气:{weather.Text}(Code:{weather.Code})");
             }
 
-            // Step 1: 计算时间基准环境
+            // 【新增】更新 UI 文本缓存
+            ChillEnvPlugin.UIWeatherString = $"{weather.Text} {weather.Temperature}°C";
+
             EnvironmentType baseEnv = GetTimeBasedEnvironment();
             EnvironmentType finalEnv = baseEnv;
 
-            // Step 2: 天气覆盖 (Bad Weather Override)
-            // 规则: 如果是坏天气，且当前不是夜晚，强制覆盖为 Cloudy
             if (IsBadWeather(weather.Code))
             {
-                if (baseEnv != EnvironmentType.Night)
-                {
-                    finalEnv = EnvironmentType.Cloudy;
-                    // ChillEnvPlugin.Log?.LogInfo($"[覆盖] 坏天气检测，环境重定向至 Cloudy");
-                }
-                else
-                {
-                    // ChillEnvPlugin.Log?.LogInfo($"[覆盖] 坏天气检测，但由于是夜晚，保持 Night");
-                }
+                if (baseEnv != EnvironmentType.Night) finalEnv = EnvironmentType.Cloudy;
             }
 
-            // Step 3: 景色判断 (Scenery)
             EnvironmentType? targetScenery = GetSceneryType(weather.Code);
 
-            // 执行
             ApplyBaseEnvironment(finalEnv, force);
             ApplyScenery(targetScenery, force);
 
@@ -676,10 +646,12 @@ namespace ChillWithYou.EnvSync
 
         private void ApplyTimeBasedEnvironment(bool force)
         {
-            // 无API数据时，只按时间走，且没有景色
+            // 无 API 时清空天气显示
+            ChillEnvPlugin.UIWeatherString = "";
+
             EnvironmentType targetEnv = GetTimeBasedEnvironment();
             ApplyBaseEnvironment(targetEnv, force);
-            ApplyScenery(null, force); // 关闭所有雨雪
+            ApplyScenery(null, force);
         }
     }
 
@@ -745,6 +717,33 @@ namespace ChillWithYou.EnvSync
             {
                 ChillEnvPlugin.Log?.LogError($"捕获 Service 失败: {ex}");
             }
+        }
+    }
+
+    // 【新增】UI Hook - 拦截 CurrentDateAndTimeUI.UpdateDateAndTime
+    [HarmonyPatch(typeof(CurrentDateAndTimeUI), "UpdateDateAndTime")]
+    internal static class DateUIPatch
+    {
+        static void Postfix(CurrentDateAndTimeUI __instance)
+        {
+            // 如果功能关闭或没有天气数据，直接返回
+            if (!ChillEnvPlugin.Cfg_ShowWeatherOnUI.Value || string.IsNullOrEmpty(ChillEnvPlugin.UIWeatherString)) return;
+
+            try
+            {
+                // 反射获取私有的 _dateText 组件
+                var field = typeof(CurrentDateAndTimeUI).GetField("_dateText", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    var textMesh = field.GetValue(__instance) as TextMeshProUGUI;
+                    if (textMesh != null)
+                    {
+                        // 在原有日期后面追加天气信息
+                        textMesh.text += $" | {ChillEnvPlugin.UIWeatherString}";
+                    }
+                }
+            }
+            catch { }
         }
     }
 }
