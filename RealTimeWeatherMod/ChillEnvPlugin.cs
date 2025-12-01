@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -9,7 +9,7 @@ using Bulbul;
 
 namespace ChillWithYou.EnvSync
 {
-  [BepInPlugin("chillwithyou.envsync", "Chill Env Sync", "5.1.2")]
+  [BepInPlugin("chillwithyou.envsync", "Chill Env Sync", "5.2.0")]
   public class ChillEnvPlugin : BaseUnityPlugin
   {
     internal static ChillEnvPlugin Instance;
@@ -21,30 +21,30 @@ namespace ChillWithYou.EnvSync
     internal static string UIWeatherString = "";
     internal static bool Initialized;
 
-    // --- 配置项 ---
+    // --- Configuration ---
     internal static ConfigEntry<int> Cfg_WeatherRefreshMinutes;
     internal static ConfigEntry<string> Cfg_SunriseTime;
     internal static ConfigEntry<string> Cfg_SunsetTime;
-    internal static ConfigEntry<string> Cfg_SeniverseKey;
+    internal static ConfigEntry<string> Cfg_ApiKey;
     internal static ConfigEntry<string> Cfg_Location;
     internal static ConfigEntry<bool> Cfg_EnableWeatherSync;
     internal static ConfigEntry<bool> Cfg_UnlockEnvironments;
     internal static ConfigEntry<bool> Cfg_UnlockDecorations;
+    internal static ConfigEntry<string> Cfg_WeatherProvider;
 
-    // UI 配置
+    // UI Configuration
     internal static ConfigEntry<bool> Cfg_ShowWeatherOnUI;
-    // 【5.1.1 新增】是否启用详细时间段显示 (凌晨/清晨/上午...)
     internal static ConfigEntry<bool> Cfg_DetailedTimeSegments;
 
     internal static ConfigEntry<bool> Cfg_EnableEasterEggs;
 
-    // 调试配置
+    // Debug Configuration
     internal static ConfigEntry<bool> Cfg_DebugMode;
     internal static ConfigEntry<int> Cfg_DebugCode;
     internal static ConfigEntry<int> Cfg_DebugTemp;
     internal static ConfigEntry<string> Cfg_DebugText;
 
-    // [Hidden] 上次同步日出日落的日期
+    // [Hidden] Last sync date for sunrise/sunset
     internal static ConfigEntry<string> Cfg_LastSunSyncDate;
 
     private static GameObject _runnerGO;
@@ -54,7 +54,7 @@ namespace ChillWithYou.EnvSync
       Instance = this;
       Log = Logger;
 
-      Log.LogInfo("【5.1.2】启动 - 天气、日出与日落版");
+      Log.LogInfo("【5.2.0】Starting - Weather, Sunrise & Sunset Edition (OpenWeather Support)");
 
       try
       {
@@ -63,7 +63,7 @@ namespace ChillWithYou.EnvSync
       }
       catch (Exception ex)
       {
-        Log.LogError($"Harmony 失败: {ex}");
+        Log.LogError($"Harmony failed: {ex}");
       }
 
       InitConfig();
@@ -75,42 +75,40 @@ namespace ChillWithYou.EnvSync
         DontDestroyOnLoad(_runnerGO);
         _runnerGO.SetActive(true);
 
-        // 挂载组件
         _runnerGO.AddComponent<Core.AutoEnvRunner>();
         _runnerGO.AddComponent<Core.SceneryAutomationSystem>();
       }
       catch (Exception ex)
       {
-        Log.LogError($"Runner 创建失败: {ex}");
+        Log.LogError($"Runner creation failed: {ex}");
       }
     }
 
     private void InitConfig()
     {
-      Cfg_WeatherRefreshMinutes = Config.Bind("WeatherSync", "RefreshMinutes", 30, "天气API刷新间隔(分钟)");
-      Cfg_SunriseTime = Config.Bind("TimeConfig", "Sunrise", "06:30", "日出时间");
-      Cfg_SunsetTime = Config.Bind("TimeConfig", "Sunset", "18:30", "日落时间");
+      Cfg_WeatherRefreshMinutes = Config.Bind("WeatherSync", "RefreshMinutes", 30, "Weather API refresh interval (minutes)");
+      Cfg_SunriseTime = Config.Bind("TimeConfig", "Sunrise", "06:30", "Sunrise time");
+      Cfg_SunsetTime = Config.Bind("TimeConfig", "Sunset", "18:30", "Sunset time");
 
-      Cfg_EnableWeatherSync = Config.Bind("WeatherAPI", "EnableWeatherSync", false, "是否启用天气API同步");
-      Cfg_SeniverseKey = Config.Bind("WeatherAPI", "SeniverseKey", "", "心知天气 API Key");
-      Cfg_Location = Config.Bind("WeatherAPI", "Location", "beijing", "城市名称");
+      Cfg_EnableWeatherSync = Config.Bind("WeatherAPI", "EnableWeatherSync", false, "Enable weather API sync");
+      Cfg_WeatherProvider = Config.Bind("WeatherAPI", "WeatherProvider", "Seniverse", "Weather provider: Seniverse or OpenWeather");
+      Cfg_ApiKey = Config.Bind("WeatherAPI", "ApiKey", "", "API Key (Seniverse or OpenWeather)");
+      Cfg_Location = Config.Bind("WeatherAPI", "Location", "beijing", "Location (city name for Seniverse, or lat,lon for OpenWeather)");
 
-      Cfg_UnlockEnvironments = Config.Bind("Unlock", "UnlockAllEnvironments", true, "自动解锁环境");
-      Cfg_UnlockDecorations = Config.Bind("Unlock", "UnlockAllDecorations", true, "自动解锁装饰");
+      Cfg_UnlockEnvironments = Config.Bind("Unlock", "UnlockAllEnvironments", true, "Auto unlock environments");
+      Cfg_UnlockDecorations = Config.Bind("Unlock", "UnlockAllDecorations", true, "Auto unlock decorations");
 
-      Cfg_ShowWeatherOnUI = Config.Bind("UI", "ShowWeatherOnDate", true, "日期栏显示天气");
-      // 【新增配置】
-      Cfg_DetailedTimeSegments = Config.Bind("UI", "DetailedTimeSegments", true, "开启12小时制时，显示详细时段(凌晨/清晨/上午等)");
+      Cfg_ShowWeatherOnUI = Config.Bind("UI", "ShowWeatherOnDate", true, "Show weather on date bar");
+      Cfg_DetailedTimeSegments = Config.Bind("UI", "DetailedTimeSegments", true, "Show detailed time segments in 12-hour format");
 
-      Cfg_EnableEasterEggs = Config.Bind("Automation", "EnableSeasonalEasterEggs", true, "启用季节性彩蛋与环境音效自动托管");
+      Cfg_EnableEasterEggs = Config.Bind("Automation", "EnableSeasonalEasterEggs", true, "Enable seasonal easter eggs & automatic environment sound management");
 
-      Cfg_DebugMode = Config.Bind("Debug", "EnableDebugMode", false, "调试模式");
-      Cfg_DebugCode = Config.Bind("Debug", "SimulatedCode", 1, "模拟天气代码");
-      Cfg_DebugTemp = Config.Bind("Debug", "SimulatedTemp", 25, "模拟温度");
-      Cfg_DebugText = Config.Bind("Debug", "SimulatedText", "DebugWeather", "模拟描述");
+      Cfg_DebugMode = Config.Bind("Debug", "EnableDebugMode", false, "Debug mode");
+      Cfg_DebugCode = Config.Bind("Debug", "SimulatedCode", 1, "Simulated weather code");
+      Cfg_DebugTemp = Config.Bind("Debug", "SimulatedTemp", 25, "Simulated temperature");
+      Cfg_DebugText = Config.Bind("Debug", "SimulatedText", "DebugWeather", "Simulated description");
 
-      // [Hidden] 上次同步日出日落的日期
-      Cfg_LastSunSyncDate = Config.Bind("Internal", "LastSunSyncDate", "", "上次同步日期");
+      Cfg_LastSunSyncDate = Config.Bind("Internal", "LastSunSyncDate", "", "Last sync date");
     }
 
     internal static void TryInitializeOnce(UnlockItemService svc)
@@ -121,7 +119,7 @@ namespace ChillWithYou.EnvSync
       if (Cfg_UnlockDecorations.Value) ForceUnlockAllDecorations(svc);
 
       Initialized = true;
-      Log?.LogInfo("初始化完成");
+      Log?.LogInfo("Initialization complete");
     }
 
     internal static void CallServiceChangeWeather(EnvironmentType envType)
@@ -135,7 +133,7 @@ namespace ChillWithYou.EnvSync
         object enumValue = Enum.Parse(windowViewEnumType, envType.ToString());
         ChangeWeatherMethod.Invoke(WindowViewServiceInstance, new object[] { enumValue });
       }
-      catch (Exception ex) { Log?.LogError($"Service调用失败: {ex.Message}"); }
+      catch (Exception ex) { Log?.LogError($"Service call failed: {ex.Message}"); }
     }
 
     internal static void SimulateClickMainIcon(EnviromentController ctrl)
@@ -143,21 +141,21 @@ namespace ChillWithYou.EnvSync
       if (ctrl == null) return;
       try
       {
-        Log?.LogInfo($"[SimulateClick] 准备点击: {ctrl.name} (Type: {ctrl.GetType().Name})");
+        Log?.LogInfo($"[SimulateClick] Preparing to click: {ctrl.name} (Type: {ctrl.GetType().Name})");
         MethodInfo clickMethod = ctrl.GetType().GetMethod("OnClickButtonMainIcon", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         if (clickMethod != null)
         {
           Patches.UserInteractionPatch.IsSimulatingClick = true;
           clickMethod.Invoke(ctrl, null);
           Patches.UserInteractionPatch.IsSimulatingClick = false;
-          Log?.LogInfo($"[SimulateClick] 点击调用完成: {ctrl.name}");
+          Log?.LogInfo($"[SimulateClick] Click invoked: {ctrl.name}");
         }
         else
         {
-          Log?.LogError($"[SimulateClick] ❌ 未找到 OnClickButtonMainIcon 方法: {ctrl.name}");
+          Log?.LogError($"[SimulateClick] ❌ OnClickButtonMainIcon method not found: {ctrl.name}");
         }
       }
-      catch (Exception ex) { Log?.LogError($"模拟点击失败: {ex.Message}"); }
+      catch (Exception ex) { Log?.LogError($"Simulated click failed: {ex.Message}"); }
     }
 
     private static void ForceUnlockAllEnvironments(UnlockItemService svc)
@@ -178,7 +176,7 @@ namespace ChillWithYou.EnvSync
           propValue.SetValue(reactive, false, null);
           count++;
         }
-        Log?.LogInfo($"✅ 已解锁 {count} 个环境");
+        Log?.LogInfo($"✅ Unlocked {count} environments");
       }
       catch { }
     }
@@ -208,7 +206,7 @@ namespace ChillWithYou.EnvSync
           propValue.SetValue(reactive, false, null);
           count++;
         }
-        Log?.LogInfo($"✅ 已解锁 {count} 个装饰品");
+        Log?.LogInfo($"✅ Unlocked {count} decorations");
       }
       catch { }
     }
