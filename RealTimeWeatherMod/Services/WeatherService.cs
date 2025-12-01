@@ -13,6 +13,8 @@ namespace ChillWithYou.EnvSync.Services
         private static DateTime _lastFetchTime;
         private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(60);
         public static WeatherInfo CachedWeather => _cachedWeather;
+        private static readonly string _encryptedDefaultKey = "7Mr4YSR87bFvE4zDgj6NbuBKgz4EiPYEnRTQ0RIaeSU=";
+        public static bool HasDefaultKey => !string.IsNullOrEmpty(_encryptedDefaultKey);
 
         public static IEnumerator FetchWeather(string apiKey, string location, bool force, Action<WeatherInfo> onComplete)
         {
@@ -22,7 +24,20 @@ namespace ChillWithYou.EnvSync.Services
                 yield break;
             }
 
-            string url = $"https://api.seniverse.com/v3/weather/now.json?key={apiKey}&location={UnityWebRequest.EscapeURL(location)}&language=zh-Hans&unit=c";
+            string finalKey = apiKey;
+            if (string.IsNullOrEmpty(finalKey) && HasDefaultKey)
+            {
+                finalKey = KeySecurity.Decrypt(_encryptedDefaultKey);
+            }
+
+            if (string.IsNullOrEmpty(finalKey))
+            {
+                ChillEnvPlugin.Log?.LogWarning("[API] 未配置 API Key 且无内置 Key");
+                onComplete?.Invoke(null);
+                yield break;
+            }
+
+            string url = $"https://api.seniverse.com/v3/weather/now.json?key={finalKey}&location={UnityWebRequest.EscapeURL(location)}&language=zh-Hans&unit=c";
             ChillEnvPlugin.Log?.LogInfo($"[API] 发起请求: {location}");
 
             using (UnityWebRequest request = UnityWebRequest.Get(url))
@@ -79,6 +94,71 @@ namespace ChillWithYou.EnvSync.Services
                 };
             }
             catch { return null; }
+        }
+
+        public static IEnumerator FetchSunSchedule(string apiKey, string location, Action<SunData> onComplete)
+        {
+            string finalKey = apiKey;
+            if (string.IsNullOrEmpty(finalKey) && HasDefaultKey)
+            {
+                finalKey = KeySecurity.Decrypt(_encryptedDefaultKey);
+            }
+
+            if (string.IsNullOrEmpty(finalKey))
+            {
+                onComplete?.Invoke(null);
+                yield break;
+            }
+
+            // start=0&days=1 (Today)
+            string url = $"https://api.seniverse.com/v3/geo/sun.json?key={finalKey}&location={UnityWebRequest.EscapeURL(location)}&language=zh-Hans&start=0&days=1";
+            ChillEnvPlugin.Log?.LogInfo($"[API] 请求日出日落: {location}");
+
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
+            {
+                request.timeout = 15;
+                yield return request.SendWebRequest();
+
+                if (request.result != UnityWebRequest.Result.Success || string.IsNullOrEmpty(request.downloadHandler.text))
+                {
+                    ChillEnvPlugin.Log?.LogWarning($"[API] 日出日落请求失败: {request.error}");
+                    onComplete?.Invoke(null);
+                    yield break;
+                }
+
+                try
+                {
+                    var sunData = ParseSunJson(request.downloadHandler.text);
+                    onComplete?.Invoke(sunData);
+                }
+                catch (Exception ex)
+                {
+                    ChillEnvPlugin.Log?.LogError($"[API] 日出日落解析失败: {ex}");
+                    onComplete?.Invoke(null);
+                }
+            }
+        }
+
+        private static SunData ParseSunJson(string json)
+        {
+            // Simple manual parsing to avoid heavy JSON library dependency if possible, 
+            // but since we have UnityEngine.JSONSerializeModule, we can try JsonUtility if the structure matches,
+            // OR just use string manipulation for robustness against extra fields.
+            // Given the structure is nested, manual parsing might be safer without a full JSON lib.
+            
+            // Structure: {"results":[{"sun":[{"date":"...","sunrise":"...","sunset":"..."}]}]}
+            
+            int sunIndex = json.IndexOf("\"sun\"");
+            if (sunIndex < 0) return null;
+
+            string sunrise = ExtractStringValue(json, "\"sunrise\":\"", "\"");
+            string sunset = ExtractStringValue(json, "\"sunset\":\"", "\"");
+            
+            if (!string.IsNullOrEmpty(sunrise) && !string.IsNullOrEmpty(sunset))
+            {
+                return new SunData { sunrise = sunrise, sunset = sunset };
+            }
+            return null;
         }
 
         private static int ExtractIntValue(string json, string prefix, string suffix)

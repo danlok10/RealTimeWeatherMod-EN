@@ -140,6 +140,20 @@ namespace ChillWithYou.EnvSync.Patches
                     SceneryAutomationSystem.UserInteractedMods.Add(type);
                     ChillEnvPlugin.Log?.LogInfo($"[用户交互] 用户接管了 {type}，停止自动托管。");
                 }
+                
+                // 立即从自动托管列表中移除
+                if (SceneryAutomationSystem._autoEnabledMods.Contains(type))
+                {
+                    SceneryAutomationSystem._autoEnabledMods.Remove(type);
+                    ChillEnvPlugin.Log?.LogDebug($"[用户交互] 已从托管列表移除 {type}");
+                }
+                
+                // 特殊处理：用户关闭系统抽中的鲸鱼时，清除标志（不恢复天气）
+                if (type == EnvironmentType.Whale && SceneryAutomationSystem.IsWhaleSystemTriggered)
+                {
+                    SceneryAutomationSystem.IsWhaleSystemTriggered = false;
+                    ChillEnvPlugin.Log?.LogInfo("[鲸鱼彩蛋] 用户手动关闭了系统抽中的鲸鱼，标志已清除");
+                }
             }
         }
     }
