@@ -1,0 +1,7 @@
+{
+  "dotnet.preferCSharpExtension": true,
+  "xml.format.enabled": false,
+  "[xml]": {
+    "editor.formatOnSave": false
+  }
+}

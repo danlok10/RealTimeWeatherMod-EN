@@ -1,0 +1,15 @@
+# EditorConfig: https://EditorConfig.org
+
+root = true
+
+# All files
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# XML project files
+[*.csproj]
+indent_style = space
+indent_size = 2
+max_line_length = off
