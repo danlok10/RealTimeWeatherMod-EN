@@ -219,7 +219,7 @@ namespace ChillWithYou.EnvSync.Core
                 ChillEnvPlugin.Log?.LogInfo("[鲸鱼彩蛋] 🐋 系统抽中的鲸鱼生效中，跳过天气切换");
                 return;
             }
-        {
+            
             ChillEnvPlugin.UIWeatherString = "";
             EnvironmentType targetEnv = GetTimeBasedEnvironment();
             ApplyBaseEnvironment(targetEnv, force);
