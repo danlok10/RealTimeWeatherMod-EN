@@ -31,6 +31,7 @@ namespace ChillWithYou.EnvSync
     internal static ConfigEntry<bool> Cfg_UnlockEnvironments;
     internal static ConfigEntry<bool> Cfg_UnlockDecorations;
     internal static ConfigEntry<string> Cfg_WeatherProvider;
+    internal static ConfigEntry<string> Cfg_SeniverseKey;
 
     // UI Configuration
     internal static ConfigEntry<bool> Cfg_ShowWeatherOnUI;
