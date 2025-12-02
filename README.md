@@ -43,6 +43,7 @@ Related mod：[iGPUSaviorMod](https://github.com/Small-tailqwq/iGPUSaviorMod)
 - 💥**Potential conflicts** with future updates or other mods
 - 🧷**External API** relies on third-party weather providers
 - 😵‍💫**AI-written code**：Expect errors, currently testing this version with OpenWeather's API
+- 🔓**OneCall API:** Although OneCall's API is free for the first thousand calls of the day, it requires subscribing to it to be able to utilise that API, therefore, I'm currently making changes for it to be available with OpenWeather's free weather API.
 
 
 ## 🎮 Supported Environment Types
