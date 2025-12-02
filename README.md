@@ -65,6 +65,7 @@ Also auto-triggered when conditions are met (e.g., cooking sounds, AC noise, cic
 
 ### TODO
 > 🗒️ Improve and stabilize the mod for OpenWeather API usage.
+> ☀️ Fix dynamic sunset and sunrise, currently off
 
 ## 📦 Installation
 
