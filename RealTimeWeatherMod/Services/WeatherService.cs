@@ -85,65 +85,62 @@ namespace ChillWithYou.EnvSync.Services
             }
         }
 
-        private static IEnumerator FetchOpenWeather(string apiKey, string location, Action<WeatherInfo> onComplete)
+private static IEnumerator FetchOpenWeather(string apiKey, string location, Action<WeatherInfo> onComplete)
+{
+    if (string.IsNullOrEmpty(apiKey))
+    {
+        // Optional: Add fallback key logic here for consistency with Seniverse
+        ChillEnvPlugin.Log?.LogWarning("[API] OpenWeather requires an API Key");
+        onComplete?.Invoke(null);
+        yield break;
+    }
+
+    string[] parts = location.Split(',');
+    if (parts.Length != 2) { /* ... error ... */ }
+
+    string lat = parts[0].Trim();
+    string lon = parts[1].Trim();
+
+    // CHANGE: Use One Call API 3.0 and request only current weather
+    string url = $"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={apiKey}&units=metric&exclude=minutely,hourly,daily,alerts";
+    ChillEnvPlugin.Log?.LogInfo($"[API] OpenWeather request: {location}");
+
+    using (UnityWebRequest request = UnityWebRequest.Get(url))
+    {
+        request.timeout = 10;
+        yield return request.SendWebRequest();
+
+        if (request.result != UnityWebRequest.Result.Success || string.IsNullOrEmpty(request.downloadHandler.text))
         {
-            if (string.IsNullOrEmpty(apiKey))
+            ChillEnvPlugin.Log?.LogWarning($"[API] OpenWeather request failed: {request.error}");
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        try
+        {
+            // CHANGE: Use the new parser
+            var weather = ParseOpenWeatherJsonOneCall(request.downloadHandler.text);
+            if (weather != null)
             {
-                ChillEnvPlugin.Log?.LogWarning("[API] OpenWeather requires an API Key");
-                onComplete?.Invoke(null);
-                yield break;
+                _cachedWeather = weather;
+                _lastFetchTime = DateTime.Now;
+                ChillEnvPlugin.Log?.LogInfo($"[API] OpenWeather data updated: {weather}");
+                onComplete?.Invoke(weather);
             }
-
-            // Parse location as "lat,lon"
-            string[] parts = location.Split(',');
-            if (parts.Length != 2)
+            else
             {
-                ChillEnvPlugin.Log?.LogWarning("[API] OpenWeather location must be in format: lat,lon");
+                ChillEnvPlugin.Log?.LogWarning($"[API] OpenWeather parse failed");
                 onComplete?.Invoke(null);
-                yield break;
-            }
-
-            string lat = parts[0].Trim();
-            string lon = parts[1].Trim();
-
-            string url = $"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={apiKey}&units=metric";
-            ChillEnvPlugin.Log?.LogInfo($"[API] OpenWeather request: {location}");
-
-            using (UnityWebRequest request = UnityWebRequest.Get(url))
-            {
-                request.timeout = 10;
-                yield return request.SendWebRequest();
-
-                if (request.result != UnityWebRequest.Result.Success || string.IsNullOrEmpty(request.downloadHandler.text))
-                {
-                    ChillEnvPlugin.Log?.LogWarning($"[API] OpenWeather request failed: {request.error}");
-                    onComplete?.Invoke(null);
-                    yield break;
-                }
-
-                try
-                {
-                    var weather = ParseOpenWeatherJson(request.downloadHandler.text);
-                    if (weather != null)
-                    {
-                        _cachedWeather = weather;
-                        _lastFetchTime = DateTime.Now;
-                        ChillEnvPlugin.Log?.LogInfo($"[API] OpenWeather data updated: {weather}");
-                        onComplete?.Invoke(weather);
-                    }
-                    else
-                    {
-                        ChillEnvPlugin.Log?.LogWarning($"[API] OpenWeather parse failed");
-                        onComplete?.Invoke(null);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ChillEnvPlugin.Log?.LogError($"[API] OpenWeather parse error: {ex.Message}");
-                    onComplete?.Invoke(null);
-                }
             }
         }
+        catch (Exception ex)
+        {
+            ChillEnvPlugin.Log?.LogError($"[API] OpenWeather parse error: {ex.Message}");
+            onComplete?.Invoke(null);
+        }
+    }
+}
 
         private static WeatherInfo ParseSeniverseJson(string json)
         {
@@ -170,52 +167,35 @@ namespace ChillWithYou.EnvSync.Services
         }
 
         private static WeatherInfo ParseOpenWeatherJson(string json)
+{
+    try
+    {
+        // Parse using a simple JsonUtility approach (requires [Serializable] classes)
+        var weatherResponse = JsonUtility.FromJson<OpenWeatherResponse>(json);
+        
+        if (weatherResponse?.current == null) return null;
+        
+        var current = weatherResponse.current;
+        var primaryWeather = current.weather != null && current.weather.Length > 0 ? current.weather[0] : null;
+        
+        int internalCode = MapOpenWeatherIdToInternalCode(primaryWeather?.id ?? 0);
+        string description = primaryWeather?.description ?? "Unknown";
+        
+        return new WeatherInfo
         {
-            try
-            {
-                // Parse OpenWeather response
-                // Structure: {"weather":[{"id":800,"main":"Clear","description":"clear sky"}],"main":{"temp":15.5}}
-                
-                int weatherId = ExtractIntValue(json, "\"id\":", ",");
-                string description = ExtractStringValue(json, "\"description\":\"", "\"");
-                string mainWeather = ExtractStringValue(json, "\"main\":\"", "\"");
-                
-                // Extract temperature from "main" object
-                int mainIndex = json.LastIndexOf("\"main\":");
-                if (mainIndex < 0) return null;
-                
-                string tempStr = ExtractStringValue(json.Substring(mainIndex), "\"temp\":", ",");
-                if (string.IsNullOrEmpty(tempStr)) tempStr = ExtractStringValue(json.Substring(mainIndex), "\"temp\":", "}");
-                
-                double tempDouble = 0;
-                if (!string.IsNullOrEmpty(tempStr))
-                {
-                    double.TryParse(tempStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out tempDouble);
-                }
-                int temp = (int)Math.Round(tempDouble);
-
-                if (string.IsNullOrEmpty(description))
-                    description = mainWeather ?? "Unknown";
-
-                // Map OpenWeather ID to our internal code system
-                int internalCode = MapOpenWeatherIdToInternalCode(weatherId);
-
-                return new WeatherInfo
-                {
-                    Code = internalCode,
-                    Text = CapitalizeFirst(description),
-                    Temperature = temp,
-                    Condition = MapSeniverseCodeToCondition(internalCode),
-                    UpdateTime = DateTime.Now
-                };
-            }
-            catch (Exception ex)
-            {
-                ChillEnvPlugin.Log?.LogError($"[OpenWeather Parse] Error: {ex.Message}");
-                return null;
-            }
-        }
-
+            Code = internalCode,
+            Text = CapitalizeFirst(description),
+            Temperature = (int)Math.Round(current.temp),
+            Condition = MapSeniverseCodeToCondition(internalCode),
+            UpdateTime = DateTime.Now
+        };
+    }
+    catch (Exception ex)
+    {
+        ChillEnvPlugin.Log?.LogError($"[OpenWeather Parse] Error: {ex.Message}");
+        return null;
+    }
+}
         private static string CapitalizeFirst(string str)
         {
             if (string.IsNullOrEmpty(str)) return str;
@@ -279,10 +259,6 @@ namespace ChillWithYou.EnvSync.Services
             
             if (provider.Equals("OpenWeather", StringComparison.OrdinalIgnoreCase))
             {
-                yield return FetchOpenWeatherSunSchedule(apiKey, location, onComplete);
-            }
-            else
-            {
                 yield return FetchSeniverseSunSchedule(apiKey, location, onComplete);
             }
         }
@@ -328,55 +304,6 @@ namespace ChillWithYou.EnvSync.Services
                 }
             }
         }
-
-        private static IEnumerator FetchOpenWeatherSunSchedule(string apiKey, string location, Action<SunData> onComplete)
-        {
-            if (string.IsNullOrEmpty(apiKey))
-            {
-                ChillEnvPlugin.Log?.LogWarning("[API] OpenWeather requires an API Key");
-                onComplete?.Invoke(null);
-                yield break;
-            }
-
-            string[] parts = location.Split(',');
-            if (parts.Length != 2)
-            {
-                ChillEnvPlugin.Log?.LogWarning("[API] OpenWeather location must be in format: lat,lon");
-                onComplete?.Invoke(null);
-                yield break;
-            }
-
-            string lat = parts[0].Trim();
-            string lon = parts[1].Trim();
-
-            string url = $"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={apiKey}";
-            ChillEnvPlugin.Log?.LogInfo($"[API] OpenWeather sun schedule request: {location}");
-
-            using (UnityWebRequest request = UnityWebRequest.Get(url))
-            {
-                request.timeout = 15;
-                yield return request.SendWebRequest();
-
-                if (request.result != UnityWebRequest.Result.Success || string.IsNullOrEmpty(request.downloadHandler.text))
-                {
-                    ChillEnvPlugin.Log?.LogWarning($"[API] OpenWeather sun schedule failed: {request.error}");
-                    onComplete?.Invoke(null);
-                    yield break;
-                }
-
-                try
-                {
-                    var sunData = ParseOpenWeatherSunJson(request.downloadHandler.text);
-                    onComplete?.Invoke(sunData);
-                }
-                catch (Exception ex)
-                {
-                    ChillEnvPlugin.Log?.LogError($"[API] OpenWeather sun schedule parse failed: {ex}");
-                    onComplete?.Invoke(null);
-                }
-            }
-        }
-
         private static SunData ParseSeniverseSunJson(string json)
         {
             int sunIndex = json.IndexOf("\"sun\"");
@@ -423,7 +350,34 @@ namespace ChillWithYou.EnvSync.Services
                 return null;
             }
         }
+        private static WeatherInfo ParseOpenWeatherJsonOneCall(string json)
+{
+    try
+    {
+        var response = JsonUtility.FromJson<OpenWeatherOneCallResponse>(json);
+        if (response?.current == null) return null;
 
+        var current = response.current;
+        var primaryWeather = current.weather != null && current.weather.Length > 0 ? current.weather[0] : null;
+
+        int internalCode = MapOpenWeatherIdToInternalCode(primaryWeather?.id ?? 0);
+        string description = primaryWeather?.description ?? "Unknown";
+
+        return new WeatherInfo
+        {
+            Code = internalCode,
+            Text = CapitalizeFirst(description),
+            Temperature = (int)Math.Round(current.temp),
+            Condition = MapSeniverseCodeToCondition(internalCode),
+            UpdateTime = DateTime.Now
+        };
+    }
+    catch (Exception ex)
+    {
+        ChillEnvPlugin.Log?.LogError($"[OpenWeather Parse] Error: {ex.Message}");
+        return null;
+    }
+}
         private static int ExtractIntValue(string json, string prefix, string suffix)
         {
             int start = json.IndexOf(prefix); 
@@ -461,4 +415,48 @@ namespace ChillWithYou.EnvSync.Services
             return WeatherCondition.Unknown;
         }
     }
+}
+[System.Serializable]
+public class OpenWeatherResponse
+{
+    public CurrentWeather current;
+}
+
+[System.Serializable]
+public class CurrentWeather
+{
+    public float temp;
+    public WeatherCondition[] weather;
+}
+
+[System.Serializable]
+public class WeatherCondition
+{
+    public int id;
+    public string main;
+    public string description;
+}
+[System.Serializable]
+private class OpenWeatherOneCallResponse
+{
+    public CurrentData current;
+    // Daily data would be here if you need it later
+}
+
+[System.Serializable]
+private class CurrentData
+{
+    public long dt; // Timestamp
+    public long sunrise;
+    public long sunset;
+    public float temp;
+    public WeatherDescription[] weather;
+}
+
+[System.Serializable]
+private class WeatherDescription
+{
+    public int id;
+    public string main;
+    public string description;
 }
