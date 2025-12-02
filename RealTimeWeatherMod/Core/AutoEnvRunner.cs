@@ -49,7 +49,7 @@ namespace ChillWithYou.EnvSync.Core
             while (retryCount < MaxRetries)
             {
                 bool success = false;
-                string apiKey = ChillEnvPlugin.Cfg_SeniverseKey.Value;
+                string apiKey = ChillEnvPlugin.Cfg_GeneralAPI.Value;
                 string location = ChillEnvPlugin.Cfg_Location.Value;
 
                 yield return WeatherService.FetchSunSchedule(apiKey, location, (data) =>
@@ -112,7 +112,7 @@ namespace ChillWithYou.EnvSync.Core
                 ApplyEnvironment(mockWeather, forceApply); return;
             }
             bool weatherEnabled = ChillEnvPlugin.Cfg_EnableWeatherSync.Value;
-            string apiKey = ChillEnvPlugin.Cfg_SeniverseKey.Value;
+            string apiKey = ChillEnvPlugin.Cfg_GeneralAPI.Value;
             if (weatherEnabled && (!string.IsNullOrEmpty(apiKey) || WeatherService.HasDefaultKey))
             {
                 string location = ChillEnvPlugin.Cfg_Location.Value;
