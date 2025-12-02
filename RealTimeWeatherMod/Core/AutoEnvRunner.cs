@@ -32,7 +32,7 @@ namespace ChillWithYou.EnvSync.Core
             if (!ChillEnvPlugin.Cfg_EnableWeatherSync.Value) return;
 
             string lastSync = ChillEnvPlugin.Cfg_LastSunSyncDate.Value;
-            string today = DateTime.Now.ToString("yyyy-MM-dd");
+            string today = DateTime.Now.ToString("dd-MM-yyyy");
 
             if (lastSync != today)
             {
