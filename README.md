@@ -275,6 +275,7 @@ The plugin automatically switches base environments based on your configured (or
 
 - First load may take ~15 seconds before the initial environment sync occurs.
 - Some weather effects may incorrectly trigger the user interaction log message `[User Interaction] User took over [HeavyRain], stopping auto-management.` This does not affect the actual switching logic.
+- Game crashing when tabbing in and out of the game window
 
 ## 🤝 Contributing
 
