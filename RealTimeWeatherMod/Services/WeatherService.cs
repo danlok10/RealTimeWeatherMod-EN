@@ -368,106 +368,117 @@ namespace ChillWithYou.EnvSync.Services
             }
         }
 
-        private static IEnumerator FetchOpenWeatherSunSchedule(string apiKey, string location, Action<SunData> onComplete)
+
+private static IEnumerator FetchOpenWeatherSunSchedule(string apiKey, string location, Action<SunData> onComplete)
+{
+    string finalLocation = location.Trim();
+    
+    if (!finalLocation.Contains(","))
+    {
+        bool geocodingComplete = false;
+        string resolvedCoords = null;
+
+        yield return FetchCoordinatesFromCityName(apiKey, finalLocation, (coords) =>
         {
-            string finalLocation = location.Trim();
-            
-            // If city name, resolve to coordinates first
-            if (!finalLocation.Contains(","))
+            geocodingComplete = true;
+            resolvedCoords = coords;
+        });
+
+        while (!geocodingComplete)
+            yield return null;
+
+        if (string.IsNullOrEmpty(resolvedCoords))
+        {
+            ChillEnvPlugin.Log?.LogError($"[SunSync] Failed to resolve city: {finalLocation}");
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        finalLocation = resolvedCoords;
+    }
+
+    // Parse coordinates
+    string[] parts = finalLocation.Replace(" ", "").Split(',');
+    if (parts.Length != 2) 
+    { 
+        ChillEnvPlugin.Log?.LogError($"[SunSync] Invalid coordinates format: {finalLocation}");
+        onComplete?.Invoke(null); 
+        yield break; 
+    }
+
+    string lat = parts[0].Trim();
+    string lon = parts[1].Trim();
+    string url = $"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={apiKey}";
+
+    ChillEnvPlugin.Log?.LogInfo($"[SunSync] OpenWeather request: lat={lat}, lon={lon}");
+
+    using (UnityWebRequest request = UnityWebRequest.Get(url))
+    {
+        request.timeout = 15;
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.Success)
+        {
+            try
             {
-                bool geocodingComplete = false;
-                string resolvedCoords = null;
-
-                yield return FetchCoordinatesFromCityName(apiKey, finalLocation, (coords) =>
+                string json = request.downloadHandler.text;
+                ChillEnvPlugin.Log?.LogDebug($"[SunSync] Raw response: {json}");
+                
+                int sysIndex = json.IndexOf("\"sys\":");
+                if (sysIndex < 0)
                 {
-                    geocodingComplete = true;
-                    resolvedCoords = coords;
-                });
-
-                while (!geocodingComplete)
-                    yield return null;
-
-                if (string.IsNullOrEmpty(resolvedCoords))
-                {
-                    ChillEnvPlugin.Log?.LogError($"[SunSync] Failed to resolve city: {finalLocation}");
+                    ChillEnvPlugin.Log?.LogError("[SunSync] Cannot find 'sys' object in response");
                     onComplete?.Invoke(null);
                     yield break;
                 }
-
-                finalLocation = resolvedCoords;
-            }
-
-            // Parse coordinates
-            string[] parts = finalLocation.Replace(" ", "").Split(',');
-            if (parts.Length != 2) 
-            { 
-                ChillEnvPlugin.Log?.LogError($"[SunSync] Invalid coordinates format: {finalLocation}");
-                onComplete?.Invoke(null); 
-                yield break; 
-            }
-
-            string lat = parts[0].Trim();
-            string lon = parts[1].Trim();
-            string url = $"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={apiKey}";
-
-            ChillEnvPlugin.Log?.LogInfo($"[SunSync] OpenWeather request: lat={lat}, lon={lon}");
-
-            using (UnityWebRequest request = UnityWebRequest.Get(url))
-            {
-                request.timeout = 15;
-                yield return request.SendWebRequest();
-
-                if (request.result == UnityWebRequest.Result.Success)
+                
+                // Extract numeric values (not quoted strings)
+                string sunriseStr = ExtractNumericValue(json.Substring(sysIndex), "\"sunrise\":");
+                string sunsetStr = ExtractNumericValue(json.Substring(sysIndex), "\"sunset\":");
+                
+                ChillEnvPlugin.Log?.LogDebug($"[SunSync] Extracted sunrise: '{sunriseStr}', sunset: '{sunsetStr}'");
+                
+                if (string.IsNullOrEmpty(sunriseStr) || string.IsNullOrEmpty(sunsetStr))
                 {
-                    try
-                    {
-                        // Manual parsing for sunrise/sunset
-                        string json = request.downloadHandler.text;
-                        
-                        int sysIndex = json.IndexOf("\"sys\":");
-                        if (sysIndex < 0)
-                        {
-                            ChillEnvPlugin.Log?.LogError("[SunSync] Cannot find 'sys' object in response");
-                            onComplete?.Invoke(null);
-                            yield break;
-                        }
-                        
-                        string sunriseStr = ExtractStringValue(json.Substring(sysIndex), "\"sunrise\":", ",");
-                        string sunsetStr = ExtractStringValue(json.Substring(sysIndex), "\"sunset\":", ",");
-                        
-                        if (string.IsNullOrEmpty(sunriseStr) || string.IsNullOrEmpty(sunsetStr))
-                        {
-                            ChillEnvPlugin.Log?.LogError($"[SunSync] Failed to extract sunrise/sunset times");
-                            onComplete?.Invoke(null);
-                            yield break;
-                        }
-                        
-                        long sunriseUnix = long.Parse(sunriseStr);
-                        long sunsetUnix = long.Parse(sunsetStr);
-                        
-                        var sunData = new SunData
-                        {
-                            sunrise = DateTimeOffset.FromUnixTimeSeconds(sunriseUnix).ToLocalTime().ToString("HH:mm"),
-                            sunset = DateTimeOffset.FromUnixTimeSeconds(sunsetUnix).ToLocalTime().ToString("HH:mm")
-                        };
-                        
-                        ChillEnvPlugin.Log?.LogInfo($"[SunSync] Success: sunrise={sunData.sunrise}, sunset={sunData.sunset}");
-                        onComplete?.Invoke(sunData);
-                        yield break;
-                    }
-                    catch (Exception ex)
-                    {
-                        ChillEnvPlugin.Log?.LogError($"[SunSync] Parse error: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    ChillEnvPlugin.Log?.LogError($"[SunSync] Request failed: {request.error}");
+                    ChillEnvPlugin.Log?.LogError($"[SunSync] Failed to extract sunrise/sunset times");
+                    onComplete?.Invoke(null);
+                    yield break;
                 }
                 
-                onComplete?.Invoke(null);
+                long sunriseUnix;
+                long sunsetUnix;
+                
+                if (!long.TryParse(sunriseStr, out sunriseUnix) || !long.TryParse(sunsetStr, out sunsetUnix))
+                {
+                    ChillEnvPlugin.Log?.LogError($"[SunSync] Failed to parse Unix timestamps: sunrise='{sunriseStr}', sunset='{sunsetStr}'");
+                    onComplete?.Invoke(null);
+                    yield break;
+                }
+                
+                var sunData = new SunData
+                {
+                    sunrise = DateTimeOffset.FromUnixTimeSeconds(sunriseUnix).ToLocalTime().ToString("HH:mm"),
+                    sunset = DateTimeOffset.FromUnixTimeSeconds(sunsetUnix).ToLocalTime().ToString("HH:mm")
+                };
+                
+                ChillEnvPlugin.Log?.LogInfo($"[SunSync] Success: sunrise={sunData.sunrise}, sunset={sunData.sunset}");
+                onComplete?.Invoke(sunData);
+                yield break;
+            }
+            catch (Exception ex)
+            {
+                ChillEnvPlugin.Log?.LogError($"[SunSync] Parse error: {ex.Message}");
+                ChillEnvPlugin.Log?.LogError($"[SunSync] Stack trace: {ex.StackTrace}");
             }
         }
+        else
+        {
+            ChillEnvPlugin.Log?.LogError($"[SunSync] Request failed: {request.error}");
+        }
+        
+        onComplete?.Invoke(null);
+    }
+}
 
         private static SunData ParseSeniverseSunJson(string json)
         {
@@ -581,5 +592,26 @@ namespace ChillWithYou.EnvSync.Services
             if (code >= 26 && code <= 36) return WeatherCondition.Foggy;
             return WeatherCondition.Unknown;
         }
+        private static string ExtractNumericValue(string json, string prefix)
+        {
+    int start = json.IndexOf(prefix);
+    if (start < 0) return null;
+    start += prefix.Length;
+    
+    while (start < json.Length && (json[start] == ' ' || json[start] == '\t'))
+        start++;
+    
+    int end = start;
+    while (end < json.Length)
+    {
+        char c = json[end];
+        if (c == ',' || c == '}' || c == ']' || c == ' ' || c == '\t' || c == '\r' || c == '\n')
+            break;
+        end++;
+    }
+    
+    if (end <= start) return null;
+    return json.Substring(start, end - start).Trim();
+}
     }
 }
