@@ -56,53 +56,21 @@ namespace ChillWithYou.EnvSync.Patches
     {
         static void Postfix(CurrentDateAndTimeUI __instance)
         {
-            try
+            if (ChillEnvPlugin.Cfg_ShowWeatherOnUI.Value && !string.IsNullOrEmpty(ChillEnvPlugin.UIWeatherString))
             {
-                // Get the date text field
-                var field = typeof(CurrentDateAndTimeUI).GetField("_dateText", BindingFlags.Instance | BindingFlags.NonPublic);
-                if (field != null)
+                try
                 {
-                    var textMesh = field.GetValue(__instance) as TextMeshProUGUI;
-                    if (textMesh != null)
+                    var field = typeof(CurrentDateAndTimeUI).GetField("_dateText", BindingFlags.Instance | BindingFlags.NonPublic);
+                    if (field != null)
                     {
-                        // 1. Apply custom date format
-                        string dateFormat = ChillEnvPlugin.Cfg_DateFormat.Value;
-                        if (!string.IsNullOrEmpty(dateFormat))
-                        {
-                            try
-                            {
-                                string formattedDate = DateTime.Now.ToString(dateFormat);
-                                
-                                // Find where the date starts in the text
-                                // The original text might have time info, so we need to preserve structure
-                                string originalText = textMesh.text;
-                                
-                                // Try to replace just the date part while keeping any time info
-                                // This is a simple approach - you may need to adjust based on actual format
-                                string[] parts = originalText.Split(' ');
-                                if (parts.Length > 0)
-                                {
-                                    parts[0] = formattedDate;
-                                    textMesh.text = string.Join(" ", parts);
-                                }
-                            }
-                            catch
-                            {
-                                // If format parsing fails, leave as is
-                            }
-                        }
-
-                        // 2. Append weather information
-                        if (ChillEnvPlugin.Cfg_ShowWeatherOnUI.Value && !string.IsNullOrEmpty(ChillEnvPlugin.UIWeatherString))
-                        {
+                        var textMesh = field.GetValue(__instance) as TextMeshProUGUI;
+                        if (textMesh != null)
                             textMesh.text += $" | {ChillEnvPlugin.UIWeatherString}";
-                        }
                     }
                 }
+                catch { }
             }
-            catch { }
 
-            // 3. Handle detailed time segments
             if (ChillEnvPlugin.Cfg_DetailedTimeSegments.Value)
             {
                 try
