@@ -95,8 +95,8 @@ namespace ChillWithYou.EnvSync.UI
 
             var vGroup = content.GetComponent<VerticalLayoutGroup>() ?? content.AddComponent<VerticalLayoutGroup>();
             vGroup.spacing = 16f;
-            vGroup.padding = new RectOffset(60, 40, 20, 20);
-            vGroup.childAlignment = TextAnchor.UpperLeft;
+            vGroup.padding = new RectOffset(40, 40, 20, 20); // Reduced left padding from 60 to 40
+            vGroup.childAlignment = TextAnchor.UpperCenter; // Changed from UpperLeft to UpperCenter
             vGroup.childControlHeight = false;
             vGroup.childControlWidth = true;
             vGroup.childForceExpandHeight = false;
@@ -133,7 +133,9 @@ namespace ChillWithYou.EnvSync.UI
 
                 if (originalRow == null) return;
 
-                // Create toggles
+                // === Weather Settings Section ===
+                CreateSubHeader(content.transform, "Weather & Time");
+
                 CreateToggle(content.transform, originalRow, "Enable Weather API Sync",
                     ChillEnvPlugin.Cfg_EnableWeatherSync.Value,
                     (val) => {
@@ -154,6 +156,8 @@ namespace ChillWithYou.EnvSync.UI
                         ChillEnvPlugin.Cfg_DetailedTimeSegments.Value = val;
                         ChillEnvPlugin.Instance.Config.Save();
                     });
+                // === Features Section ===
+                CreateSubHeader(content.transform, "Features (Must restart game)");
 
                 CreateToggle(content.transform, originalRow, "Enable Seasonal Easter Eggs",
                     ChillEnvPlugin.Cfg_EnableEasterEggs.Value,
@@ -162,9 +166,44 @@ namespace ChillWithYou.EnvSync.UI
                         ChillEnvPlugin.Instance.Config.Save();
                     });
 
+                CreateToggle(content.transform, originalRow, "Unlock All Environments",
+                    ChillEnvPlugin.Cfg_UnlockEnvironments.Value,
+                    (val) => {
+                        ChillEnvPlugin.Cfg_UnlockEnvironments.Value = val;
+                        ChillEnvPlugin.Instance.Config.Save();
+                        ChillEnvPlugin.Log?.LogWarning("Please restart the game for environment unlock changes to take effect");
+                    });
+
+                CreateToggle(content.transform, originalRow, "Unlock All Decorations",
+                    ChillEnvPlugin.Cfg_UnlockDecorations.Value,
+                    (val) => {
+                        ChillEnvPlugin.Cfg_UnlockDecorations.Value = val;
+                        ChillEnvPlugin.Instance.Config.Save();
+                        ChillEnvPlugin.Log?.LogWarning("Please restart the game for decoration unlock changes to take effect");
+                    });
+
                 // Force layout rebuild
                 LayoutRebuilder.ForceRebuildLayoutImmediate(content.GetComponent<RectTransform>());
             });
+        }
+
+        static void CreateSubHeader(Transform parent, string text)
+        {
+            GameObject obj = new GameObject($"SubHeader_{text}");
+            obj.transform.SetParent(parent, false);
+
+            var rect = obj.AddComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(0, 35);
+
+            var le = obj.AddComponent<LayoutElement>();
+            le.minHeight = 35f;
+            le.preferredHeight = 35f;
+            le.flexibleWidth = 1f;
+
+            var tmp = obj.AddComponent<TextMeshProUGUI>();
+            tmp.text = $"<size=16><color=#AAAAAA>{text}</color></size>";
+            tmp.alignment = TextAlignmentOptions.MidlineLeft;
+            tmp.color = new Color(0.67f, 0.67f, 0.67f, 1f);
         }
 
         static void CreateSectionHeader(Transform parent, string name, string version)
@@ -173,17 +212,17 @@ namespace ChillWithYou.EnvSync.UI
             obj.transform.SetParent(parent, false);
 
             var rect = obj.AddComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(0, 55);
+            rect.sizeDelta = new Vector2(0, 50);
 
             var le = obj.AddComponent<LayoutElement>();
-            le.minHeight = 55f;
-            le.preferredHeight = 55f;
+            le.minHeight = 50f;
+            le.preferredHeight = 50f;
             le.flexibleWidth = 1f;
 
             var tmp = obj.AddComponent<TextMeshProUGUI>();
-            string verStr = string.IsNullOrEmpty(version) ? "" : $" <size=18><color=#888888>v{version}</color></size>";
-            tmp.text = $"<size=24><b>{name}</b></size>{verStr}";
-            tmp.alignment = TextAlignmentOptions.BottomLeft;
+            string verStr = string.IsNullOrEmpty(version) ? "" : $" <size=16><color=#888888>v{version}</color></size>";
+            tmp.text = $"<size=20><b>{name}</b></size>{verStr}";
+            tmp.alignment = TextAlignmentOptions.Center; // Center alignment
             tmp.color = Color.white;
         }
 
@@ -194,12 +233,23 @@ namespace ChillWithYou.EnvSync.UI
             toggleRow.transform.SetParent(parent, false);
             toggleRow.SetActive(true);
 
+            // Add LayoutElement to control width
+            var layoutElement = toggleRow.GetComponent<LayoutElement>();
+            if (layoutElement == null)
+                layoutElement = toggleRow.AddComponent<LayoutElement>();
+
+            layoutElement.preferredWidth = 800f; // Fixed width for consistency
+            layoutElement.minWidth = 800f;
+
             // Update label
             var titleTexts = toggleRow.GetComponentsInChildren<TMP_Text>(true);
             if (titleTexts.Length > 0)
             {
                 var sortedTexts = titleTexts.OrderBy(t => t.transform.position.x).ToArray();
                 sortedTexts[0].text = label;
+
+                // Ensure label has proper alignment
+                sortedTexts[0].alignment = TextAlignmentOptions.MidlineLeft;
             }
 
             // Setup buttons
