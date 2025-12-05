@@ -8,7 +8,7 @@ A BepInEx plugin for *Chill with You – A Lo-Fi Story with You*. It synchronize
 
 ---
 
-[![Chill with You](./CWYLS-EN.jpg)](https://store.steampowered.com/app/3548580/)
+[![Chill with You](./Images/CWYLS-EN.jpg)](https://store.steampowered.com/app/3548580/)
 
 > Chill with You Lo-Fi Story is a voiced novel/work-with-me game featuring Satone. You can customize the music, ambience, and scenery to build a focused working environment. As your relationship deepens, something special may or may not happen.
 
@@ -25,6 +25,7 @@ Related mod：[iGPUSaviorMod](https://github.com/Small-tailqwq/iGPUSaviorMod)
 ## ✨ Main Features
 
 - 🌤️ **Real-time weather sync** via Seniverse or OpenWeather APIs
+- 💥 **Temperature Unit** for both imperial and metric
 - 🌍 **Multi-city and multi-provider support**
 - 🌓 **Automatic day/night cycle** based on actual sunrise and sunset times
 - 🔓 **Optional unlock-all** for environments and decorations
@@ -35,6 +36,17 @@ Related mod：[iGPUSaviorMod](https://github.com/Small-tailqwq/iGPUSaviorMod)
   - `F7` – Force refresh weather (bypasses cache)
   - `F8` – Log current environment status
   - `F9` – Force re-apply environment using cached data
+ 
+## ✨ Preview
+### 📦 With iGPUSavior
+
+![iGPUSavior](./Images/iGPUSupport1.jpg)
+![iGPUSavior](./Images/iGPUSupport2.jpg)
+
+### 🧷 Without iGPUSavior
+
+![RTWM](./Images/Standalone1.jpg)
+![RTWM](./Images/Standalone2.jpg)
 
 ## ⚠️ Notes
 
@@ -226,6 +238,11 @@ The plugin automatically switches base environments based on your configured (or
   - Reflection (to access internal game systems)
 
 ## 📝 Version History
+
+### v5.3.0
+- Staying up to date with original repository
+- Added support to iGPUSavior
+- Minor changes
 
 ### v5.2.1
 - Fixed dynamic sunset and sunrise.
