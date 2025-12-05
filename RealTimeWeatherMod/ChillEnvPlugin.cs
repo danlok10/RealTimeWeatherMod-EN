@@ -50,7 +50,6 @@ namespace ChillWithYou.EnvSync
         internal static ConfigEntry<string> Cfg_LastSunSyncDate;
 
         private static GameObject _runnerGO;
-        private static GameObject _modSettingsGO;
 
         private void Awake()
         {
@@ -80,12 +79,6 @@ namespace ChillWithYou.EnvSync
 
                 _runnerGO.AddComponent<Core.AutoEnvRunner>();
                 _runnerGO.AddComponent<Core.SceneryAutomationSystem>();
-
-                // Add ModSettingsIntegration component
-                _modSettingsGO = new GameObject("ChillEnvModSettings");
-                _modSettingsGO.hideFlags = HideFlags.HideAndDontSave;
-                DontDestroyOnLoad(_modSettingsGO);
-                _modSettingsGO.AddComponent<Patches.ModSettingsIntegration>();
             }
             catch (Exception ex)
             {
