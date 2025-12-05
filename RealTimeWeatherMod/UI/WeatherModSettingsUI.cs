@@ -191,7 +191,7 @@ namespace ChillWithYou.EnvSync.UI
                 if (registerMethod != null)
                 {
                     // Register with the combined name
-                    registerMethod.Invoke(managerInstance, new object[] { "Chill Env Sync", "5.2.1" });
+                    registerMethod.Invoke(managerInstance, new object[] { "Chill Env Sync", "5.3.0" });
                     ChillEnvPlugin.Log?.LogInfo("[Weather MOD] Registered with ModSettingsManager");
                 }
 
@@ -314,7 +314,7 @@ namespace ChillWithYou.EnvSync.UI
                                             // Center the text
                                             tmp.alignment = TextAlignmentOptions.Center;
                                             // Set the combined title with version on same line
-                                            tmp.text = "<size=20><b>Chill Env Sync (iGPU Savior Active) <color=#888888>v5.2.1 + 1.6.0</color></b></size>";
+                                            tmp.text = "<size=20><b>Chill Env Sync (iGPU Savior Active) <color=#888888>v5.3.0 + 1.6.0</color></b></size>";
                                             ChillEnvPlugin.Log?.LogInfo("[Weather MOD] Title forcibly updated and centered");
                                         }
                                     }
@@ -432,7 +432,7 @@ namespace ChillWithYou.EnvSync.UI
                 if (content == null || settingUI == null) return;
 
                 // Version on same line as title
-                CreateSectionHeader(content.transform, "Chill Env Sync", "5.2.1");
+                CreateSectionHeader(content.transform, "Chill Env Sync", "5.3.0");
 
                 Transform audioTabContent = settingUI.transform.Find("MusicAudio/ScrollView/Viewport/Content");
                 if (audioTabContent == null) return;
