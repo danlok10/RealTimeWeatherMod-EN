@@ -708,6 +708,13 @@ namespace ChillWithYou.EnvSync.UI
                 dropdown.transform.SetParent(parent, false);
                 dropdown.SetActive(false);
 
+                var dropdownLayout = dropdown.GetComponent<LayoutElement>();
+                if (dropdownLayout == null)
+                    dropdownLayout = dropdown.AddComponent<LayoutElement>();
+                dropdownLayout.preferredHeight = 60f;
+                dropdownLayout.minHeight = 60f;
+                dropdownLayout.flexibleWidth = 1f;
+
                 var titlePaths = new[] { "TitleText", "Title/Text", "Text" };
                 foreach (var path in titlePaths)
                 {
@@ -792,7 +799,6 @@ namespace ChillWithYou.EnvSync.UI
                     UpdateDropdownSelectedText(dropdown, providerOptions[currentIndex]);
                     ConfigureDropdownUI(dropdown, originalDropdown, content);
                 }
-
                 dropdown.SetActive(true);
             }
             catch (System.Exception e)
@@ -815,6 +821,13 @@ namespace ChillWithYou.EnvSync.UI
                 dropdown.name = "TemperatureUnitDropdown";
                 dropdown.transform.SetParent(parent, false);
                 dropdown.SetActive(false);
+
+                var dropdownLayout = dropdown.GetComponent<LayoutElement>();
+                if (dropdownLayout == null)
+                    dropdownLayout = dropdown.AddComponent<LayoutElement>();
+                dropdownLayout.preferredHeight = 60f;
+                dropdownLayout.minHeight = 60f;
+                dropdownLayout.flexibleWidth = 1f;
 
                 var titlePaths = new[] { "TitleText", "Title/Text", "Text" };
                 foreach (var path in titlePaths)
@@ -907,7 +920,6 @@ namespace ChillWithYou.EnvSync.UI
                     UpdateDropdownSelectedText(dropdown, tempOptions[currentIndex]);
                     ConfigureDropdownUI(dropdown, originalDropdown, content);
                 }
-
                 dropdown.SetActive(true);
             }
             catch (System.Exception e)
@@ -1016,21 +1028,33 @@ namespace ChillWithYou.EnvSync.UI
                     contentRect.anchoredPosition = Vector2.zero;
                 }
 
+                // Add Canvas to ROOT object (not child panels)
                 Canvas rootCanvas = dropdown.GetComponent<Canvas>();
                 if (rootCanvas == null)
                 {
                     rootCanvas = dropdown.AddComponent<Canvas>();
-                    rootCanvas.overrideSorting = true;
-                    rootCanvas.sortingOrder = 40000;
+                    rootCanvas.overrideSorting = false;
+                    rootCanvas.sortingOrder = 0;
 
                     if (dropdown.GetComponent<GraphicRaycaster>() == null)
                         dropdown.AddComponent<GraphicRaycaster>();
+
+                    ChillEnvPlugin.Log?.LogInfo("[Weather MOD] Canvas added to ROOT dropdown");
                 }
                 else
                 {
-                    rootCanvas.overrideSorting = true;
-                    rootCanvas.sortingOrder = 40000;
+                    // Ensure existing canvas is reset
+                    rootCanvas.overrideSorting = false;
+                    rootCanvas.sortingOrder = 0;
                 }
+
+                // Add the dynamic layer controller
+                var layerController = dropdown.GetComponent<PulldownLayerController>();
+                if (layerController == null)
+                    layerController = dropdown.AddComponent<PulldownLayerController>();
+
+                // Initialize with the component we found earlier (pulldownUI) and the canvas
+                layerController.Initialize(pulldownUI, rootCanvas);
 
                 SetField("_currentSelectContentText", currentSelectTextComp);
                 SetField("_pullDownParentRect", pulldownParentRect);
@@ -1247,6 +1271,57 @@ namespace ChillWithYou.EnvSync.UI
             if (cachedSettingUI == null) return;
             var sss = AccessTools.Field(typeof(SettingUI), "_systemSeService").GetValue(cachedSettingUI);
             sss?.GetType().GetMethod("PlayClick")?.Invoke(sss, null);
+        }
+    }
+
+    /// <summary>
+    /// Dynamically controls Canvas sorting based on dropdown open/closed state
+    /// </summary>
+    public class PulldownLayerController : MonoBehaviour
+    {
+        private Component pulldownUI;
+        private Canvas targetCanvas;
+        private System.Reflection.FieldInfo isOpenField;
+        private bool lastIsOpen = false;
+
+        public void Initialize(Component pulldownUIComponent, Canvas canvas)
+        {
+            pulldownUI = pulldownUIComponent;
+            targetCanvas = canvas;
+
+            if (pulldownUI != null)
+            {
+                isOpenField = pulldownUI.GetType().GetField("_isOpen",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            }
+        }
+
+        private void Update()
+        {
+            if (pulldownUI == null || targetCanvas == null || isOpenField == null)
+                return;
+
+            try
+            {
+                bool isOpen = (bool)isOpenField.GetValue(pulldownUI);
+
+                if (isOpen != lastIsOpen)
+                {
+                    if (isOpen)
+                    {
+                        targetCanvas.overrideSorting = true;
+                        targetCanvas.sortingOrder = 30000;
+                    }
+                    else
+                    {
+                        targetCanvas.overrideSorting = false;
+                        targetCanvas.sortingOrder = 0;
+                    }
+
+                    lastIsOpen = isOpen;
+                }
+            }
+            catch { }
         }
     }
 
