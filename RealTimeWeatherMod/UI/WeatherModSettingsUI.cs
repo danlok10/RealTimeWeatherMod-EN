@@ -562,10 +562,6 @@ namespace ChillWithYou.EnvSync.UI
                 LayoutRebuilder.ForceRebuildLayoutImmediate(content.GetComponent<RectTransform>());
             });
         }
-
-        /// <summary>
-        /// Creates an input field similar to the FPS input fields shown in the screenshot
-        /// </summary>
         static void CreateInputField(Transform parent, SettingUI settingUI, string label, string initialValue,
             System.Action<string> onValueChanged, bool isPassword = false)
         {
@@ -582,8 +578,9 @@ namespace ChillWithYou.EnvSync.UI
             layout.flexibleWidth = 1f;
 
             var hGroup = container.AddComponent<HorizontalLayoutGroup>();
-            hGroup.spacing = 20f;
-            hGroup.childAlignment = TextAnchor.MiddleLeft;
+            hGroup.spacing = 30f;
+            hGroup.childAlignment = TextAnchor.MiddleCenter;
+
             hGroup.childControlWidth = false;
             hGroup.childControlHeight = true;
             hGroup.childForceExpandWidth = false;
@@ -592,18 +589,17 @@ namespace ChillWithYou.EnvSync.UI
             // Create label
             GameObject labelObj = new GameObject("Label");
             labelObj.transform.SetParent(container.transform, false);
-
             var labelRect = labelObj.AddComponent<RectTransform>();
-            labelRect.sizeDelta = new Vector2(400, 60);
+            labelRect.sizeDelta = new Vector2(200, 60);
 
             var labelLayout = labelObj.AddComponent<LayoutElement>();
-            labelLayout.minWidth = 400f;
-            labelLayout.preferredWidth = 400f;
+            labelLayout.minWidth = 200f;
+            labelLayout.preferredWidth = 200f;
 
             var labelText = labelObj.AddComponent<TextMeshProUGUI>();
             labelText.text = label;
             labelText.fontSize = 18;
-            labelText.alignment = TextAlignmentOptions.MidlineLeft;
+            labelText.alignment = TextAlignmentOptions.MidlineRight;
             labelText.color = Color.white;
 
             // Create input field
@@ -611,11 +607,11 @@ namespace ChillWithYou.EnvSync.UI
             inputObj.transform.SetParent(container.transform, false);
 
             var inputRect = inputObj.AddComponent<RectTransform>();
-            inputRect.sizeDelta = new Vector2(350, 45);
+            inputRect.sizeDelta = new Vector2(450, 45);
 
             var inputLayout = inputObj.AddComponent<LayoutElement>();
-            inputLayout.minWidth = 350f;
-            inputLayout.preferredWidth = 350f;
+            inputLayout.minWidth = 450f;
+            inputLayout.preferredWidth = 450f;
             inputLayout.minHeight = 45f;
             inputLayout.preferredHeight = 45f;
 
@@ -682,17 +678,12 @@ namespace ChillWithYou.EnvSync.UI
                 }
             });
 
-            // Set colors
             var colors = inputField.colors;
             colors.normalColor = new Color(0.15f, 0.15f, 0.15f, 1f);
             colors.highlightedColor = new Color(0.2f, 0.2f, 0.2f, 1f);
             colors.selectedColor = new Color(0.25f, 0.25f, 0.25f, 1f);
             inputField.colors = colors;
         }
-
-        /// <summary>
-        /// Creates a dropdown for Weather Provider selection
-        /// </summary>
         static void CreateWeatherProviderDropdown(Transform parent, SettingUI settingUI)
         {
             try
@@ -706,6 +697,15 @@ namespace ChillWithYou.EnvSync.UI
                 GameObject dropdown = Object.Instantiate(originalDropdown.gameObject);
                 dropdown.name = "WeatherProviderDropdown";
                 dropdown.transform.SetParent(parent, false);
+
+                var hGroup = dropdown.GetComponent<HorizontalLayoutGroup>();
+                if (hGroup != null)
+                {
+                    hGroup.spacing = 10f;
+                    hGroup.childAlignment = TextAnchor.MiddleCenter;
+                    hGroup.childForceExpandWidth = false;
+                }
+
                 dropdown.SetActive(false);
 
                 var dropdownLayout = dropdown.GetComponent<LayoutElement>();
@@ -820,6 +820,15 @@ namespace ChillWithYou.EnvSync.UI
                 GameObject dropdown = Object.Instantiate(originalDropdown.gameObject);
                 dropdown.name = "TemperatureUnitDropdown";
                 dropdown.transform.SetParent(parent, false);
+
+                var hGroup = dropdown.GetComponent<HorizontalLayoutGroup>();
+                if (hGroup != null)
+                {
+                    hGroup.spacing = 10f;
+                    hGroup.childAlignment = TextAnchor.MiddleCenter;
+                    hGroup.childForceExpandWidth = false;
+                }
+
                 dropdown.SetActive(false);
 
                 var dropdownLayout = dropdown.GetComponent<LayoutElement>();
@@ -1071,7 +1080,6 @@ namespace ChillWithYou.EnvSync.UI
                 ChillEnvPlugin.Log?.LogError($"ConfigureDropdownUI failed: {e.Message}");
             }
         }
-
         static void CreateSubHeader(Transform parent, string text)
         {
             GameObject obj = new GameObject($"SubHeader_{text}");
@@ -1087,7 +1095,7 @@ namespace ChillWithYou.EnvSync.UI
 
             var tmp = obj.AddComponent<TextMeshProUGUI>();
             tmp.text = $"<size=16><color=#AAAAAA>{text}</color></size>";
-            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.alignment = TextAlignmentOptions.Center; // Keep text centered
             tmp.color = new Color(0.67f, 0.67f, 0.67f, 1f);
         }
 
@@ -1107,10 +1115,9 @@ namespace ChillWithYou.EnvSync.UI
             var tmp = obj.AddComponent<TextMeshProUGUI>();
             string verStr = string.IsNullOrEmpty(version) ? "" : $" <size=16><color=#888888>v{version}</color></size>";
             tmp.text = $"<size=20><b>{name}</b></size>{verStr}";
-            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.alignment = TextAlignmentOptions.Center; // Keep text centered
             tmp.color = Color.white;
         }
-
         static void CreateToggle(Transform parent, Transform templateRow, string label, bool initialValue, System.Action<bool> onValueChanged)
         {
             GameObject toggleRow = Object.Instantiate(templateRow.gameObject);
@@ -1122,8 +1129,15 @@ namespace ChillWithYou.EnvSync.UI
             if (layoutElement == null)
                 layoutElement = toggleRow.AddComponent<LayoutElement>();
 
-            layoutElement.preferredWidth = 800f;
-            layoutElement.minWidth = 800f;
+            layoutElement.preferredWidth = 750f;
+            layoutElement.minWidth = 750f;
+
+            var hGroup = toggleRow.GetComponent<HorizontalLayoutGroup>();
+            if (hGroup != null)
+            {
+                hGroup.childAlignment = TextAnchor.MiddleCenter;
+                hGroup.childForceExpandWidth = false;
+            }
 
             var titleTexts = toggleRow.GetComponentsInChildren<TMP_Text>(true);
             if (titleTexts.Length > 0)
