@@ -40,13 +40,13 @@ Related mod：[iGPUSaviorMod](https://github.com/Small-tailqwq/iGPUSaviorMod)
 ## ✨ Preview
 ### 📦 With iGPUSavior
 
-![iGPUSavior](./Images/iGPUSupport1.jpg)
-![iGPUSavior](./Images/iGPUSupport2.jpg)
+![iGPUSavior](https://github.com/user-attachments/assets/079f3aec-2713-4830-8c46-fa592dfd07e0)
+![iGPUSavior](https://github.com/user-attachments/assets/9a57af37-5a9a-4e7e-9dd9-ad42334aa840)
 
 ### 🧷 Without iGPUSavior
 
-![RTWM](./Images/Standalone1.jpg)
-![RTWM](./Images/Standalone2.jpg)
+![RTWM](https://github.com/user-attachments/assets/892e1e87-e6d7-4210-85f9-cd2d2d9f10e5)
+![RTWM](https://github.com/user-attachments/assets/c700edba-60d5-47b2-a8ff-941a7072b886)
 
 ## ⚠️ Notes
 
