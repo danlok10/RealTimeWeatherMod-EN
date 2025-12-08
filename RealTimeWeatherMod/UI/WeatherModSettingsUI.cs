@@ -396,6 +396,12 @@ namespace ChillWithYou.EnvSync.UI
                 modTabButton.transform.SetParent(creditsButton.transform.parent, false);
                 modTabButton.transform.SetSiblingIndex(creditsButton.transform.GetSiblingIndex() + 1);
 
+                var le = modTabButton.GetComponent<LayoutElement>();
+                if (le == null) le = modTabButton.AddComponent<LayoutElement>();
+                le.flexibleWidth = 0;
+                le.minWidth = 80f;
+                le.preferredWidth = 120f;
+
                 modContentParent = Object.Instantiate(creditsParent);
                 modContentParent.name = "WeatherModSettingsContent";
                 modContentParent.transform.SetParent(creditsParent.transform.parent, false);
@@ -1231,9 +1237,23 @@ namespace ChillWithYou.EnvSync.UI
 
         static void AdjustTabBarLayout(Transform tabBarParent)
         {
+            var hlg = tabBarParent.GetComponent<HorizontalLayoutGroup>();
+            if (hlg != null)
+            {
+                hlg.childForceExpandWidth = true;
+                hlg.spacing = 0f;
+                if (hlg.padding != null)
+                {
+                    hlg.padding.left = 0;
+                    hlg.padding.right = 0;
+                }
+            }
             var rectTransform = tabBarParent.GetComponent<RectTransform>();
             if (rectTransform != null)
-                LayoutRebuilder.ForceRebuildLayoutImmediate(rectTransform);
+            {
+                var currentPos = rectTransform.anchoredPosition;
+                rectTransform.anchoredPosition = new Vector2(currentPos.x - 90f, currentPos.y);
+            }
         }
 
         private static void HookIntoTabButtons(SettingUI settingUI)
