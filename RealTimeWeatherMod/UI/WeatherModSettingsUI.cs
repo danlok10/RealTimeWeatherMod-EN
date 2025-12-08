@@ -535,7 +535,7 @@ namespace ChillWithYou.EnvSync.UI
             {
                 if (content == null || settingUI == null) return;
 
-                CreateSectionHeader(content.transform, "Chill Env Sync", "5.3.0");
+                CreateSectionHeader(content.transform, "Chill Env Sync", "5.4.0");
 
                 Transform audioTabContent = settingUI.transform.Find("MusicAudio/ScrollView/Viewport/Content");
                 if (audioTabContent == null) return;
