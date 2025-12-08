@@ -9,12 +9,12 @@ using Bulbul;
 
 namespace ChillWithYou.EnvSync
 {
-    [BepInPlugin("chillwithyou.envsync", "Chill Env Sync", "5.3.0")]
+    [BepInPlugin("chillwithyou.envsync", "Chill Env Sync", "5.4.0")]
     public class ChillEnvPlugin : BaseUnityPlugin
     {
         internal static ChillEnvPlugin Instance;
         internal static ManualLogSource Log;
-        public const string PluginVersion = "5.3.0";
+        public const string PluginVersion = "5.4.0";
         internal static UnlockItemService UnlockItemServiceInstance;
 
         internal static object WindowViewServiceInstance;
@@ -57,7 +57,7 @@ namespace ChillWithYou.EnvSync
             Instance = this;
             Log = Logger;
 
-            Log.LogInfo("【5.3.0】Starting - Weather, Sunrise & Sunset Edition (OpenWeather Support)");
+            Log.LogInfo("【5.4.0】Starting - Weather, Sunrise & Sunset Edition (OpenWeather Support)");
 
             try
             {
