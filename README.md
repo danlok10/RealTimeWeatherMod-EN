@@ -244,9 +244,11 @@ The plugin automatically switches base environments based on your configured (or
 ## 📝 Version History
 
 ### v5.3.0
+- Optimization
+- In-game tab
 - Staying up to date with the original repository
 - Added support for iGPUSavior
-- Minor changes
+- Major changes
 
 ### v5.2.1
 - Fixed dynamic sunset and sunrise.
