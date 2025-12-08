@@ -243,12 +243,17 @@ The plugin automatically switches base environments based on your configured (or
 
 ## 📝 Version History
 
+### v5.4.0
+- Complete UI overhaul with in-game configuration support
+- Added input fields for Location and API Key (no more manual config editing!)
+- Added dropdown menus for Weather Provider and Temperature Unit selection
+- Fixed dropdown menus appearing behind other UI elements
+- Minor bug fixes and performance optimizations
+
 ### v5.3.0
-- Optimization
-- In-game tab
 - Staying up to date with the original repository
 - Added support for iGPUSavior
-- Major changes
+- Minor changes
 
 ### v5.2.1
 - Fixed dynamic sunset and sunrise.
